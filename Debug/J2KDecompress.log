@@ -1,0 +1,10 @@
+﻿  TagTreeDecoder.cpp
+  PacketHeaderDecoder.cpp
+c:\users\robert\documents\visual studio 2015\projects\decompress\j2kdecompress\packetheaderdecoder.cpp(59): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+c:\users\robert\documents\visual studio 2015\projects\decompress\j2kdecompress\packetheaderdecoder.cpp(6): warning C4101: 'tpidx': unreferenced local variable
+c:\users\robert\documents\visual studio 2015\projects\decompress\j2kdecompress\packetheaderdecoder.cpp(5): warning C4101: 'passtype': unreferenced local variable
+c:\users\robert\documents\visual studio 2015\projects\decompress\j2kdecompress\packetheaderdecoder.cpp(6): warning C4101: 'lblockCur': unreferenced local variable
+c:\users\robert\documents\visual studio 2015\projects\decompress\j2kdecompress\packetheaderdecoder.cpp(6): warning C4101: 'tmp2': unreferenced local variable
+  Generating Code...
+  J2KDecompress.vcxproj -> C:\Users\Robert\Documents\Visual Studio 2015\Projects\Decompress\Debug\J2KDecompress.exe
+  J2KDecompress.vcxproj -> C:\Users\Robert\Documents\Visual Studio 2015\Projects\Decompress\Debug\J2KDecompress.pdb (Partial PDB)
