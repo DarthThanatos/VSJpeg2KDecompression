@@ -1,7 +1,6 @@
 #include "common.h"
 
-
-EntropyDecoder::EntropyDecoder(StreamReader*) {
+EntropyDecoder::EntropyDecoder(MetadataReader *mr) {
 	int i, j;
 	double val, deltaMSE;
 	int *inter_sc_lut;
@@ -9,6 +8,8 @@ EntropyDecoder::EntropyDecoder(StreamReader*) {
 	int dsgn, usgn, rsgn, lsgn;
 	int h, v;
 
+	stateLength = (mr->codeblock_width + 2) *	((mr->codeblock_height + 1) / 2 + 2);
+	state = new int[stateLength];
 	// Initialize the zero coding lookup tables
 
 	// LH
@@ -136,11 +137,12 @@ EntropyDecoder::EntropyDecoder(StreamReader*) {
 			ZC_LUT_HH[(twoLeast[i] << 4) | oneBit[j]] = 7;
 
 	// - Two diagonal significant, none horiz+vert significant
-	for (i = 0; i<11; i++)
+	for (i = 0; i < 6; i++) {
 		ZC_LUT_HH[twoBits[i]] = 8;
+	}
 
 	// - Two diagonal significant, one or more horiz+vert significant
-	for (j = 0; j<11; j++)
+	for (j = 0; j<6; j++)
 		for (i = 1; i<16; i++)
 			ZC_LUT_HH[(i << 4) | twoBits[j]] = 9;
 
@@ -208,47 +210,36 @@ EntropyDecoder::EntropyDecoder(StreamReader*) {
 	}
 }
 
+void initArrays(CodeBlock *cblk, int* state, int stateLength) {
+	for (int i = 0; i < stateLength; i++) state[i] = 0;
+	cblk->coefficients = new int[cblk->w * cblk->h];
+	for (int i = 0; i < cblk->w * cblk->h; i++) cblk->coefficients[i] = 0;
+}
 
-CodeBlock * EntropyDecoder::fillCodeBlock(Subband *sb, CodeBlock * cblk){
+void EntropyDecoder::decode(CodeBlock ****cblks) {
+	for (int c = 0; c < ALL_C; c++) {
+		for (int r = 0; r < ALL_R; r++) {
+			int mins = (r == 0) ? 0 : 1;
+			int maxs = (r == 0) ? 1 : 4;
+			for (int s = mins; s < maxs; s++) {
+				CodeBlock *cblk = cblks[c][r][s];
+				initArrays(cblk, state, stateLength);
+				decodeCodeBlock(cblk, s);
+			}			
+		}
+	}
+}
+
+void EntropyDecoder::decodeCodeBlock(CodeBlock * cblk, int subbandType){
 	int *zc_lut;     // The ZC lookup table to use
-	int *out_data;   // The outupt data buffer
 	int npasses;      // The number of coding passes to perform
 	int curbp;        // The current magnitude bit-plane (starts at 30)
-	boolean error;    // Error indicator
-	int tslen;        // Length of first terminated segment
-	int tsidx;        // Index of current terminated segment
 
-
-	out_data = cblk->out_data;
-
-
-	// Set data values to 0
-	cblk->initDataSet();
-
-	// Get the length of the first terminated segment
-	tslen = cblk->cbLen;
-	tsidx = 0;
-	// Initialize for decoding
-	npasses = cblk->truncationPointsAmount;
-	mq = new MQDecoder(src, NUM_CTXTS, MQ_INIT);
-	// We always start by an MQ segment
-	mq->nextSegment();
-	mq->resetCtxts();
-	error = false;
-	/** The ID for the LL orientation */
-	const int WT_ORIENT_LL = 0;
-
-	/** The ID for the HL (horizontal high-pass) orientation */
-	const int WT_ORIENT_HL = 1;
-
-	/** The ID for the LH (vertical high-pass) orientation */
-	const int WT_ORIENT_LH = 2;
-
-	/** The ID for the HH orientation */
-	const int WT_ORIENT_HH = 3;
+	npasses = cblk->ntp;
+	mq = new MQDecoder(cblk->data, NUM_CTXTS, MQ_INIT);
 
 	// Choose correct ZC lookup table for global orientation
-	switch (sb->gOrient) {
+	switch (subbandType) {
 		case WT_ORIENT_HL:
 			zc_lut = ZC_LUT_HL;
 			break;
@@ -259,39 +250,448 @@ CodeBlock * EntropyDecoder::fillCodeBlock(Subband *sb, CodeBlock * cblk){
 		case WT_ORIENT_HH:
 			zc_lut = ZC_LUT_HH;
 			break;
+		default: return;
 	}
 
-
-	// Loop on bit-planes and passes
-
 	curbp = 30 - cblk->msbSkipped;
-	//to - do the rest
-	return cblk;
+	if (curbp >= 0 && npasses > 0) {
+		cleanuppass(cblk, curbp, state, zc_lut);
+		npasses--;
+		curbp--;
+	}
+
+	while (curbp >= 0 && npasses > 0) {
+		sigProgPass(cblk, curbp, state, zc_lut);
+		npasses--;
+		if (npasses <= 0) break;
+		magRefPass(cblk, curbp, state, zc_lut);
+		npasses--;
+		if (npasses <= 0) break;
+		cleanuppass(cblk, curbp, state, zc_lut);
+		npasses--;
+		curbp--;
+	}
 }
 
 
-
-bool EntropyDecoder::cleanuppass() {
-	//to-do
-	return true;
+int EntropyDecoder::getSym(int data[], int k, int csj, int setmask, int sc_shift) {
+	// Sample that became significant is first row of its column half
+	unsigned int ctxt = SC_LUT[(csj >> sc_shift)&SC_MASK];
+	unsigned int xorBit = ctxt >> SC_SPRED_SHIFT;
+	int sym = mq->decodeSymbol(ctxt & SC_LUT_MASK) ^ (xorBit);
+	// Update the data
+	data[k] = (sym << 31) | setmask;
+	return sym;
 }
 
-bool EntropyDecoder::sigProgPass() {
-	//to-do 
-	return true;
+int EntropyDecoder::updateFirstRowNeighbours(int state[], int j, int off_ul, int off_ur, int csj, int sym, int sscanw) {
+	// Update state information (significant bit,
+	// visited bit, neighbor significant bit of
+	// neighbors, non zero context of neighbors, sign
+	// of neighbors)
+	state[j + off_ul] |= STATE_NZ_CTXT_R2 | STATE_D_DR_R2;
+	state[j + off_ur] |= STATE_NZ_CTXT_R2 | STATE_D_DL_R2;
+	// Update sign state information of neighbors
+	csj |= STATE_SIG_R1 | STATE_NZ_CTXT_R2 | STATE_V_U_R2 | STATE_VISITED_R1;
+	state[j - sscanw] |= STATE_NZ_CTXT_R2 | STATE_V_D_R2;
+	state[j + 1] |= STATE_NZ_CTXT_R1 | STATE_NZ_CTXT_R2 | STATE_H_L_R1 | STATE_D_UL_R2;
+	state[j - 1] |= STATE_NZ_CTXT_R1 | STATE_NZ_CTXT_R2 | STATE_H_R_R1 | STATE_D_UR_R2;
+	if (sym != 0) {
+		csj |= STATE_V_U_SIGN_R2;
+		state[j - sscanw] |= STATE_V_D_SIGN_R2;
+		state[j + 1] |= STATE_H_L_SIGN_R1;
+		state[j - 1] |= STATE_H_R_SIGN_R1;
+	}
+	return csj;
 }
 
-bool EntropyDecoder::rawSigProgPass() {
-	//to-do
-	return true;
+int EntropyDecoder::updateSecondRowNeighbours(int state[], int j, int off_dl, int off_dr, int csj, int sym, int sscanw, boolean visitedToSet) {
+	// Update state information (significant bit,
+	// neighbor significant bit of neighbors, non zero
+	// context of neighbors, sign of neighbors)
+	state[j + off_dl] |= STATE_NZ_CTXT_R1 | STATE_D_UR_R1;
+	state[j + off_dr] |= STATE_NZ_CTXT_R1 | STATE_D_UL_R1;
+	csj |= STATE_SIG_R2 | STATE_NZ_CTXT_R1 | STATE_V_D_R1;
+	state[j + sscanw] |= STATE_NZ_CTXT_R1 | STATE_V_U_R1;
+	state[j + 1] |= STATE_NZ_CTXT_R1 | STATE_NZ_CTXT_R2 | STATE_D_DL_R1 | STATE_H_L_R2;
+	state[j - 1] |= STATE_NZ_CTXT_R1 | STATE_NZ_CTXT_R2 | STATE_D_DR_R1 | STATE_H_R_R2;
+	// Update sign state information of neighbors
+	if (sym != 0) {
+		csj |= STATE_V_D_SIGN_R1;
+		state[j + sscanw] |= STATE_V_U_SIGN_R1;
+		state[j + 1] |= STATE_H_L_SIGN_R2;
+		state[j - 1] |= STATE_H_R_SIGN_R2;
+	}
+	if (visitedToSet) {
+		csj |= STATE_VISITED_R2;
+	}
+	return csj;
 }
 
-bool EntropyDecoder::magRefPass() {
-	//to-do
-	return true;
+void EntropyDecoder::notSigNotVis(int data[], int k, int csj, int zc_lut[], int setmask, int sscanw, int dscanw, int j, int off_ul, int off_ur, int off_dl, int off_dr, int sheight, int sheightTresh) {
+	if ((csj & VSTD_MASK_R1R2) != VSTD_MASK_R1R2) {
+		// Scan first row
+		if ((csj & (STATE_SIG_R1 | STATE_VISITED_R1)) == 0) {
+			// Use zero coding
+			if (mq->decodeSymbol(zc_lut[csj&ZC_MASK]) != 0) {
+				int sym = getSym(data, k, csj, setmask, SC_SHIFT_R1);
+				csj = updateFirstRowNeighbours(state, j, off_ul, off_ur, csj, sym, sscanw);
+			}
+		}
+		if (sheight < sheightTresh) {
+			csj &= ~(STATE_VISITED_R1 | STATE_VISITED_R2);
+			state[j] = csj;
+			return;
+		}
+		// Scan second row
+		if ((csj & (STATE_SIG_R2 | STATE_VISITED_R2)) == 0) {
+			k += dscanw;
+			// Use zero coding
+			unsigned int csj_uns = csj;
+			unsigned int lut_index = csj_uns >> STATE_SEP;
+			if (mq->decodeSymbol(zc_lut[(lut_index)& ZC_MASK]) != 0) {
+				int sym = getSym(data, k, csj, setmask, SC_SHIFT_R2);
+				csj = updateSecondRowNeighbours(state, j, off_dl, off_dr, csj, sym, sscanw, true);
+			}
+		}
+	}
+	csj &= ~(STATE_VISITED_R1 | STATE_VISITED_R2);
+	state[j] = csj;
 }
 
-bool EntropyDecoder::rawMagRefPass() {
-	//to-do
-	return true;
+void EntropyDecoder::cleanuppass(CodeBlock *cblk, int bp, int* state, int *zc_lut) {
+	int j, sj;        // The state index for line and stripe
+	int k, sk;        // The data index for line and stripe
+	int dscanw;      // The data scan-width
+	int sscanw;      // The state scan-width
+	int jstep;       // Stripe to stripe step for 'sj'
+	int kstep;       // Stripe to stripe step for 'sk'
+	int stopsk;      // The loop limit on the variable sk
+	int csj;         // Local copy (i.e. cached) of 'state[j]'
+	int setmask;     // The mask to set current and lower bit-planes to 1/2 approximation
+	int sym;         // The decoded symbol
+	int rlclen;      // Length of RLC
+	int *data;      // The data buffer
+	int s;           // The stripe index
+	int nstripes;    // The number of stripes in the code-block
+	int sheight;     // Height of the current stripe
+	int off_ul, off_ur, off_dr, off_dl; // offsets
+	dscanw = cblk->w;
+	sscanw = cblk->w + 2;
+	jstep = sscanw * STRIPE_HEIGHT / 2 - cblk->w;
+	kstep = dscanw * STRIPE_HEIGHT - cblk->w;
+	setmask = (3 << bp) >> 1;
+	data = cblk->coefficients;
+	nstripes = (cblk->h + STRIPE_HEIGHT - 1) / STRIPE_HEIGHT;
+
+	// Pre-calculate offsets in 'state' for diagonal neighbors
+	off_ul = -sscanw - 1;  // up-left
+	off_ur = -sscanw + 1; // up-right
+	off_dr = sscanw + 1;   // down-right
+	off_dl = sscanw - 1;   // down-left
+
+	// Decode stripe by stripe
+	sk = 0;
+	sj = sscanw + 1;
+	for (s = nstripes - 1; s >= 0; s--, sk += kstep, sj += jstep) {
+		sheight = (s != 0) ? STRIPE_HEIGHT : cblk->h - (nstripes - 1)*STRIPE_HEIGHT;
+		stopsk = sk + cblk->w;
+		// Scan by set of 1 stripe column at a time
+		for (; sk < stopsk; sk++, sj++) {
+			// Start column
+			j = sj;
+			csj = state[j];
+		top_half:
+			{
+				// Check for RLC: if all samples are not significant, not
+				// visited and do not have a non-zero context, and column
+				// is full height, we do RLC.
+				if (csj == 0 && state[j + sscanw] == 0 && sheight == STRIPE_HEIGHT) {
+					if (mq->decodeSymbol(RLC_CTXT) != 0) {
+						// run-length is significant, decode length
+						rlclen = mq->decodeSymbol(UNIF_CTXT) << 1;
+						rlclen |= mq->decodeSymbol(UNIF_CTXT);
+						// Set 'k' and 'j' accordingly
+						k = sk + rlclen * dscanw;
+						if (rlclen > 1) {
+							j += sscanw;
+							csj = state[j];
+						}
+					}
+					else { // RLC is insignificant
+						   // Goto next column
+						continue;
+					}
+					// We just decoded the length of a significant RLC
+					// and a sample became significant
+					// Use sign coding
+					if ((rlclen & 0x01) == 0) {
+						sym = getSym(data, k, csj, setmask, SC_SHIFT_R1);
+						csj = updateFirstRowNeighbours(state, j, off_ul, off_ur, csj, sym, sscanw);
+						// Changes to csj are saved later
+						if ((rlclen >> 1) == 1) { //10
+							// Sample that became significant is in
+							// bottom half of column => jump to bottom
+							// half
+							goto bottom_half;
+						}
+						// Otherwise sample that became significant is in
+						// top half of column => continue on top half
+					}
+					else {
+						sym = getSym(data, k, csj, setmask, SC_SHIFT_R2);
+						csj = updateSecondRowNeighbours(state, j, off_dl, off_dr, csj, sym, sscanw, false);
+						// Save changes to csj
+						state[j] = csj;
+						if ((rlclen >> 1) == 1) { //11
+							// Sample that became significant is in bottom
+							// half of column => we're done with this
+							// column
+							continue;
+						}
+						// 01
+						// Otherwise sample that became significant is in
+						// top half of column => we're done with top
+						// column
+						j += sscanw;
+						csj = state[j];
+						goto bottom_half;
+					}
+				} // 00
+				notSigNotVis(data, sk, csj, zc_lut, setmask, sscanw, dscanw, j, off_ul, off_ur, off_dl, off_dr, sheight, 2);
+				// Do half bottom of column
+				if (sheight < 3) continue;
+				j += sscanw;
+				csj = state[j];
+			} // end of 'top_half' block
+		bottom_half:
+			notSigNotVis(data, sk + (dscanw * 2), csj, zc_lut, setmask, sscanw, dscanw, j, off_ul, off_ur, off_dl, off_dr, sheight, 4);
+		}
+	}
+}
+
+void EntropyDecoder::sigProgPass(CodeBlock *cblk, int bp, int* state, int *zc_lut) {
+	int j, sj;        // The state index for line and stripe
+	int k, sk;        // The data index for line and stripe
+	int dscanw;      // The data scan-width
+	int sscanw;      // The state scan-width
+	int jstep;       // Stripe to stripe step for 'sj'
+	int kstep;       // Stripe to stripe step for 'sk'
+	int stopsk;      // The loop limit on the variable sk
+	int csj;         // Local copy (i.e. cached) of 'state[j]'
+	int setmask;     // The mask to set current and lower bit-planes to 1/2
+					 // approximation
+	int sym;         // The symbol to code
+	int *data;      // The data buffer
+	int s;           // The stripe index
+	int nstripes;    // The number of stripes in the code-block
+	int sheight;     // Height of the current stripe
+	int off_ul, off_ur, off_dr, off_dl; // offsets
+
+	dscanw = cblk->w;
+	sscanw = cblk->w + 2;
+	jstep = sscanw * STRIPE_HEIGHT / 2 - cblk->w;
+	kstep = dscanw * STRIPE_HEIGHT - cblk->w;
+	setmask = (3 << bp) >> 1;
+	data = cblk->coefficients;
+	nstripes = (cblk->h + STRIPE_HEIGHT - 1) / STRIPE_HEIGHT;
+
+	// Pre-calculate offsets in 'state' for diagonal neighbors
+	off_ul = -sscanw - 1;  // up-left
+	off_ur = -sscanw + 1; // up-right
+	off_dr = sscanw + 1;   // down-right
+	off_dl = sscanw - 1;   // down-left
+
+	// Decode stripe by stripe
+	sk = 0;
+	sj = sscanw + 1;
+	for (s = nstripes - 1; s >= 0; s--, sk += kstep, sj += jstep) {
+		sheight = (s != 0) ? STRIPE_HEIGHT : cblk->h - (nstripes - 1)*STRIPE_HEIGHT;
+		stopsk = sk + cblk->w;
+		// Scan by set of 1 stripe column at a time
+		for (; sk < stopsk; sk++, sj++) {
+			// Do half top of column
+			j = sj;
+			csj = state[j];
+			// If any of the two samples is not significant and has a
+			// non-zero context (i.e. some neighbor is significant) we can 
+			// not skip them
+			if ((((~csj)) & SIG_MASK_R1R2) != 0) {
+				k = sk;
+				// Scan first row
+				if ((csj & (STATE_SIG_R1 | STATE_NZ_CTXT_R1)) == STATE_NZ_CTXT_R1) {
+					// Use zero coding
+					if (mq->decodeSymbol(zc_lut[csj&ZC_MASK]) != 0) {
+						sym = getSym(data, k, csj, setmask, SC_SHIFT_R1);
+						csj = updateFirstRowNeighbours(state, j, off_ul, off_ur, csj, sym, sscanw);
+					}
+					else {
+						csj |= STATE_VISITED_R1;
+					}
+				}
+				state[j] = csj;
+				if (sheight < 2) {
+					continue;
+				}
+				// Scan second row
+				if ((csj & (STATE_SIG_R2 | STATE_NZ_CTXT_R2)) == STATE_NZ_CTXT_R2) {
+					k += dscanw;
+					// Use zero coding
+					unsigned int csj_uns = csj;
+					unsigned int lut_index = csj_uns >> STATE_SEP;
+					if (mq->decodeSymbol(zc_lut[(lut_index)&ZC_MASK]) != 0) {
+						sym = getSym(data, k, csj, setmask, SC_SHIFT_R2);
+						csj = updateSecondRowNeighbours(state, j, off_dl, off_dr, csj, sym, sscanw, true);
+					}
+					else {
+						csj |= STATE_VISITED_R2;
+					}
+				}
+				state[j] = csj;
+			}
+			// Do half bottom of column
+			if (sheight < 3) continue;
+			j += sscanw;
+			csj = state[j];
+			// If any of the two samples is not significant and has a
+			// non-zero context (i.e. some neighbor is significant) we can 
+			// not skip them
+			if ((((~csj)) & SIG_MASK_R1R2) != 0) {
+				k = sk + (dscanw * 2);
+				// Scan first row
+				if ((csj & (STATE_SIG_R1 | STATE_NZ_CTXT_R1)) == STATE_NZ_CTXT_R1) {
+					// Use zero coding
+					if (mq->decodeSymbol(zc_lut[csj&ZC_MASK]) != 0) {
+						sym = getSym(data, k, csj, setmask, SC_SHIFT_R1);
+						csj = updateFirstRowNeighbours(state, j, off_ul, off_ur, csj, sym, sscanw);
+					}
+					else {
+						csj |= STATE_VISITED_R1;
+					}
+				}
+				if (sheight < 4) {
+					state[j] = csj;
+					continue;
+				}
+				// Scan second row
+				if ((csj & (STATE_SIG_R2 | STATE_NZ_CTXT_R2)) == STATE_NZ_CTXT_R2) {
+					k += dscanw;
+					// Use zero coding
+					unsigned int csj_uns = csj;
+					unsigned int lut_index = csj_uns >> STATE_SEP;
+					if (mq->decodeSymbol(zc_lut[(lut_index)&  ZC_MASK]) != 0) {
+						sym = getSym(data, k, csj, setmask, SC_SHIFT_R2);
+						csj = updateSecondRowNeighbours(state, j, off_dl, off_dr, csj, sym, sscanw, true);
+					}
+					else {
+						csj |= STATE_VISITED_R2;
+					}
+				}
+				state[j] = csj;
+			}
+		}
+	}
+}
+
+
+void EntropyDecoder::magRefPass(CodeBlock *cblk, int bp, int* state, int *zc_lut) {
+	int j, sj;        // The state index for line and stripe
+	int k, sk;        // The data index for line and stripe
+	int dscanw;      // The data scan-width
+	int sscanw;      // The state scan-width
+	int jstep;       // Stripe to stripe step for 'sj'
+	int kstep;       // Stripe to stripe step for 'sk'
+	int stopsk;      // The loop limit on the variable sk
+	int csj;         // Local copy (i.e. cached) of 'state[j]'
+	int setmask; // The mask to set lower bit-planes to 1/2 approximation
+	int resetmask;   // The mask to reset approximation bit-planes
+	int sym;         // The symbol to decode
+	int *data;      // The data buffer
+	int s;           // The stripe index
+	int nstripes;    // The number of stripes in the code-block
+	int sheight;     // Height of the current stripe
+
+	dscanw = cblk->w;
+	sscanw = cblk->w + 2;
+	jstep = sscanw * STRIPE_HEIGHT / 2 - cblk->w;
+	kstep = dscanw * STRIPE_HEIGHT - cblk->w;
+	setmask = (1 << bp) >> 1;
+	resetmask = (-1) << (bp + 1);
+
+	data = cblk->coefficients;
+	nstripes = (cblk->h + STRIPE_HEIGHT - 1) / STRIPE_HEIGHT;
+
+	// Decode stripe by stripe
+	sk = 0;
+	sj = sscanw + 1;
+	for (s = nstripes - 1; s >= 0; s--, sk += kstep, sj += jstep) {
+		sheight = (s != 0) ? STRIPE_HEIGHT : cblk->h - (nstripes - 1)*STRIPE_HEIGHT;
+		stopsk = sk + cblk->w;
+		// Scan by set of 1 stripe column at a time
+		for (; sk < stopsk; sk++, sj++) {
+			// Do half top of column
+			j = sj;
+			csj = state[j];
+			// If any of the two samples is significant and not yet
+			// visited in the current bit-plane we cannot skip them
+			if ((((~csj)) & VSTD_MASK_R1R2) != 0) {
+				k = sk;
+				// Scan first row
+				if ((csj & (STATE_SIG_R1 | STATE_VISITED_R1)) == STATE_SIG_R1) {
+					sym = mq->decodeSymbol(MR_LUT[csj&MR_MASK]);
+					data[k] &= resetmask;
+					data[k] |= (sym << bp) | setmask;
+					csj |= STATE_PREV_MR_R1;
+				}
+				if (sheight < 2) {
+					state[j] = csj;
+					continue;
+				}
+				// Scan second row
+				if ((csj & (STATE_SIG_R2 | STATE_VISITED_R2)) ==
+					STATE_SIG_R2) {
+					k += dscanw;
+					unsigned int csj_uns = csj;
+					unsigned int lut_index = csj_uns >> STATE_SEP;
+					sym = mq->decodeSymbol(MR_LUT[(lut_index)& MR_MASK]);
+					data[k] &= resetmask;
+					data[k] |= (sym << bp) | setmask;
+					csj |= STATE_PREV_MR_R2;
+				}
+				state[j] = csj;
+			}
+			
+			// Do half bottom of column
+			if (sheight < 3) continue;
+			j += sscanw;
+			csj = state[j];
+			// If any of the two samples is significant and not yet
+			// visited in the current bit-plane we can not skip them
+			if ((((~csj)) & VSTD_MASK_R1R2) != 0) {
+				k = sk + (dscanw * 2);
+				// Scan first row
+				if ((csj & (STATE_SIG_R1 | STATE_VISITED_R1)) == STATE_SIG_R1) {
+					sym = mq->decodeSymbol(MR_LUT[csj&MR_MASK]);
+					data[k] &= resetmask;
+					data[k] |= (sym << bp) | setmask;
+					csj |= STATE_PREV_MR_R1;
+				}
+				if (sheight < 4) {
+					state[j] = csj;
+					continue;
+				}
+				// Scan second row
+				if ((state[j] & (STATE_SIG_R2 | STATE_VISITED_R2)) == STATE_SIG_R2) {
+					k += dscanw;
+					unsigned int csj_uns = csj;
+					unsigned int lut_index = csj_uns >> STATE_SEP;
+					sym = mq->decodeSymbol(MR_LUT[(lut_index) & MR_MASK]);
+					data[k] &= resetmask;
+					data[k] |= (sym << bp) | setmask;
+					csj |= STATE_PREV_MR_R2;
+				}
+				state[j] = csj;
+			}
+		}
+	}
 }

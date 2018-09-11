@@ -3,7 +3,7 @@
 
 class MQDecoder {
 public:
-	MQDecoder(StreamReader *, int nrOfContexts, int initStates[]);
+	MQDecoder(unsigned char *, int nrOfContexts, int initStates[]);
 	int mps_exchange(int cx);
 	int lps_exchange(int cx);
 	void renormd();
@@ -52,5 +52,6 @@ private:
 	int nrOfCtxts;
 	boolean markerFound;
 	int *initStates;
-	StreamReader *in;
+	unsigned char* data;
+	int dataPos = 0;
 };

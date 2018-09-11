@@ -1,9 +1,9 @@
 #pragma once
 #include "common.h"
 
-class PacketHeaderDecoder {
+class PacketDecoder {
 public:
-	bool readPktHead(int c, int r, Subband *);
+	CodeBlock **** readData(MetadataReader *);
 private:
 	StreamReader *in;
 };

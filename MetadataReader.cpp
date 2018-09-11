@@ -8,8 +8,8 @@ void MetadataReader::handleSIZ() {
 	printf("siz\n");
 	short length = streamReader->getTwoByteLength();
 	short capabilities = streamReader->readTwoBytes();
-	unsigned int Xsiz = streamReader->readFourBytes();
-	unsigned int Ysiz = streamReader->readFourBytes(); 
+	Xsiz = streamReader->readFourBytes();
+	Ysiz = streamReader->readFourBytes(); 
 	unsigned int XOsiz = streamReader->readFourBytes(); 
 	unsigned int YOsiz = streamReader->readFourBytes();
 	unsigned int XTsiz = streamReader->readFourBytes();
@@ -29,6 +29,7 @@ void MetadataReader::handleSIZ() {
 		printf("sign = %d, precision = %d, xrsiz = %d, yrsiz = %d\n", sxy[i].sign, sxy[i].precision, sxy[i].XRsiz, sxy[i].YRsiz);
 	}
 	printf("xsiz = %u ysiz = %u\n", Xsiz, Ysiz);
+	number_of_components = componentsAmount;
 }
 
 void MetadataReader::handleCOD() {
@@ -46,9 +47,15 @@ void MetadataReader::handleCOD() {
 	codeblock_exponent_height_offset_val = streamReader->readByte();
 	code_block_style = streamReader->readByte();
 	transformation = streamReader->readByte();
-	int codeblock_height = 1 << (codeblock_exponent_height_offset_val + 2);
-	int codeblock_width = 1 << (codeblock_exponent_width_offset_val + 2);
-	printf("cb width = %d, cb height = %d, decomposition lvls = %d\n", codeblock_width, codeblock_height, number_of_decomposition_lvls);
+	codeblock_height = 1 << (codeblock_exponent_height_offset_val + 2);
+	codeblock_width = 1 << (codeblock_exponent_width_offset_val + 2);
+	printf(
+		"cb width = %d, cb height = %d, decomposition lvls = %d progression order = %d\n", 
+		codeblock_width, 
+		codeblock_height, 
+		number_of_decomposition_lvls, 
+		progression_order
+	);
 }
 
 void MetadataReader::handleQCD() {
@@ -83,7 +90,7 @@ void MetadataReader::handleSOT() {
 	tile_index_TPsot = streamReader->readByte();
 	number_of_tile_in_cs = streamReader->readByte();
 	bit_stream_length = tile_length - 14; //without fields above, and sot and sot markers
-	printf("tile length = %d\n", bit_stream_length);
+	printf("tile length = %d lsot = %d isot = %d tpsot = %d tile_number = %d\n", bit_stream_length, length, tile_index_Isot, tile_index_TPsot, number_of_tile_in_cs);
 }
 
 void MetadataReader::handleQCC() {
@@ -92,7 +99,8 @@ void MetadataReader::handleQCC() {
 
 void MetadataReader::readCompressedImage(){
 	printf("sod\n");
-	unsigned char *sod = new unsigned char[bit_stream_length];
+	cout << "pos: " << ftell(streamReader->input) << endl;
+	sod = new unsigned char[bit_stream_length];
 	sod = streamReader->readNBytes(sod, bit_stream_length);
 	printf("end of sod\n");
 }
@@ -136,5 +144,18 @@ void MetadataReader::parseMetadata() {
 
 		}
 		prev_byte = byte;
+	}
+}
+
+void MetadataReader::initSubbands() {
+	componentsSubbandRoots = new Subband*[number_of_components];
+	for (int i = 0; i < number_of_components; i++) {
+		componentsSubbandRoots[i] = new Subband(
+			number_of_decomposition_lvls,
+			number_of_decomposition_lvls,
+			WT_ORIENT_LL,
+			Xsiz, Ysiz, 0, 0
+		);
+		cout << componentsSubbandRoots[i]->toString() << endl;
 	}
 }

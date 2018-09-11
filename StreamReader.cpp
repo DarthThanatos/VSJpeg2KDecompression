@@ -6,7 +6,7 @@ StreamReader::StreamReader(char *input_name, char * output_name) {
 }
 
 unsigned char * StreamReader::readNBytes(unsigned char* buffer, int N) {
-	fread(buffer, 1, N, input);
+	fread(buffer, N, 1, input);
 	return buffer;
 }
 

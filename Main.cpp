@@ -1,13 +1,5 @@
 #include "common.h"
-
-
-int qe[] = { 0x5601, 0x3401, 0x1801, 0x0ac1, 0x0521, 0x0221, 0x5601,
-0x5401, 0x4801, 0x3801, 0x3001, 0x2401, 0x1c01, 0x1601,
-0x5601, 0x5401, 0x5101, 0x4801, 0x3801, 0x3401, 0x3001,
-0x2801, 0x2401, 0x2201, 0x1c01, 0x1801, 0x1601, 0x1401,
-0x1201, 0x1101, 0x0ac1, 0x09c1, 0x08a1, 0x0521, 0x0441,
-0x02a1, 0x0221, 0x0141, 0x0111, 0x0085, 0x0049, 0x0025,
-0x0015, 0x0009, 0x0005, 0x0001, 0x5601 };
+#include <bitset>
 
 void print_bin_rek(int number) {
 	if (number / 2 != 0) print_bin_rek(number / 2);
@@ -28,11 +20,24 @@ void print_bin_padded(int number, char *end_str) {
 	printf("%s", end_str);
 }
 
-
 void decode(int argc, char*argv[]) {
 	StreamReader *streamReader = new StreamReader(argv[1], argv[2]);
 	MetadataReader *metadataReader = new MetadataReader(streamReader);
 	metadataReader->parseMetadata();
+	metadataReader->initSubbands();
+	PacketDecoder *packetDecoder = new PacketDecoder();
+	CodeBlock**** cblks = packetDecoder->readData(metadataReader);
+	EntropyDecoder *ed = new EntropyDecoder(metadataReader);
+	ed->decode(cblks);
+
+	Subband *s = metadataReader->componentsSubbandRoots[0]->getSubbandAt(5, 0);
+	cout << (s != NULL ? s->toString() : "NULL") << endl;
+
+	int c = -1926529024;
+	c = 542256977;
+	unsigned int c_s = c;
+	bitset<32> x(c), x_s(c_s>>16);
+	cout << x << " " << x_s << endl;
 }
 
 

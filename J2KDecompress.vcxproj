@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -21,32 +21,32 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{7AD72514-1058-4FF4-863E-B4BE2B15882A}</ProjectGuid>
     <RootNamespace>J2KDecompress</RootNamespace>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -116,7 +116,8 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MetadataReader.cpp" />
     <ClCompile Include="MQDecoder.cpp" />
-    <ClCompile Include="PacketHeaderDecoder.cpp" />
+    <ClCompile Include="PacketDecoder.cpp" />
+    <ClCompile Include="PacketHeaderReader.cpp" />
     <ClCompile Include="StreamReader.cpp" />
     <ClCompile Include="Subband.cpp" />
     <ClCompile Include="TagTreeDecoder.cpp" />
@@ -126,10 +127,11 @@
     <ClInclude Include="common.h" />
     <ClInclude Include="EntropyDecoder.h" />
     <ClInclude Include="InverseWaveletTransform.h" />
+    <ClInclude Include="PacketHeaderReader.h" />
     <ClInclude Include="TagTreeDecoder.h" />
     <ClInclude Include="MetadataReader.h" />
     <ClInclude Include="MQDecoder.h" />
-    <ClInclude Include="PacketHeaderDecoder.h" />
+    <ClInclude Include="PacketDecoder.h" />
     <ClInclude Include="StreamReader.h" />
     <ClInclude Include="Subband.h" />
   </ItemGroup>

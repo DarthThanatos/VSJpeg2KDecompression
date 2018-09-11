@@ -3,12 +3,10 @@
 
 class EntropyDecoder {
 public :
-	EntropyDecoder(StreamReader* src);
+	EntropyDecoder(MetadataReader *);
+	void decode(CodeBlock ****cblks);
 
 private: 
-
-	/** The bit based input for arithmetic coding bypass (i.e. raw) coding */
-	StreamReader* src;
 
 	/** The MQ decoder to use. It has in as the underlying source of coded
 	* data. */
@@ -107,6 +105,9 @@ private:
 	* 16 bits are referred to as "row 2" ("R2").
 	* */
 	int *state;
+	int stateLength;
+
+	int STRIPE_HEIGHT = 4;
 
 	/** The separation between the upper and lower bits in the state array: 16
 	* */
@@ -276,11 +277,13 @@ private:
 	* information. It is to be applied after the 'MR_SHIFT' */
 	int MR_MASK = (1 << 9) - 1;
 
-	CodeBlock *fillCodeBlock( Subband *sb,	CodeBlock * cblk);
-	bool sigProgPass();
-	bool rawSigProgPass();
-	bool magRefPass(); 
-	bool rawMagRefPass(); 
-	bool cleanuppass();
+	int getSym(int data[], int k, int csj, int setmask, int sc_shift);
+	int updateFirstRowNeighbours(int state[], int j, int off_ul, int off_ur, int csj, int sym, int sscanw);
+	int updateSecondRowNeighbours(int state[], int j, int off_dl, int off_dr, int csj, int sym, int sscanw, boolean visitedToSet);
+	void notSigNotVis(int data[], int k, int csj, int zc_lut[], int setmask, int sscanw, int dscanw, int j, int off_ul, int off_ur, int off_dl, int off_dr, int sheight, int sheightTresh);
+	void decodeCodeBlock(CodeBlock *, int);
+	void sigProgPass(CodeBlock *cblk, int curbp, int* state, int *zc_lut);
+	void magRefPass(CodeBlock *cblk, int curbp, int* state, int *zc_lut);
+	void cleanuppass(CodeBlock *cblk, int curbp, int* state, int *zc_lut);
 
 };

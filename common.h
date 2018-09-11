@@ -2,6 +2,7 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream> 
+#include <climits> 
 #include <Windows.h>
 #include <conio.h>
 #include <map>
@@ -17,10 +18,12 @@ using namespace std;
 #include "Subband.h"
 #include "MetadataReader.h"
 #include "MQDecoder.h"
+#include "PacketHeaderReader.h"
 #include "TagTreeDecoder.h"
-#include "PacketHeaderDecoder.h"
+#include "PacketDecoder.h"
 #include "EntropyDecoder.h"
 
+const int ALL_C = 3, ALL_R = 6, ALL_S = 4;
 enum FILTERS { F5x3, F9x3 };
 
 typedef struct {

@@ -1,15 +1,45 @@
 #include "common.h"
 
-TagTreeDecoder::TagTreeDecoder(StreamReader * in) {
+TagTreeDecoder::TagTreeDecoder(PacketHeaderReader * in, int w, int h) {
 	this->in = in;
+	// Initialize dimensions
+	this->w = w;
+	this->h = h;
+	// Calculate the number of levels
+	if (w == 0 || h == 0) {
+		lvls = 0; // Empty tree
+	}
+	else {
+		lvls = 1;
+		while (h != 1 || w != 1) { // Loop until we reach root
+			w = (w + 1) >> 1;
+			h = (h + 1) >> 1;
+			lvls++;
+		}
+	}
+	// Allocate tree values and states
+	treeV = new int*[lvls];
+	treeS = new int*[lvls];
+	w = this->w;
+	h = this->h;
+	for (int i = 0; i<lvls; i++) {
+		treeV[i] = new int[h*w];
+		treeS[i] = new int[h*w];
+		for (int j = 0; j < h*w; j++) {
+			treeV[i][j] = INT_MAX;
+			treeS[i][j] = 0;
+		}
+		w = (w + 1) >> 1;
+		h = (h + 1) >> 1;
+	}
 }
 
-int TagTreeDecoder::update(CodeBlock *cblk) {
-	int k, tmin, t = 0;
+int TagTreeDecoder::update() {
+	int k, tmin;
 	int idx, ts, tv;
 	int m, n;
-	m = cblk->m;
-	n = cblk->n;
+	m = 0;
+	n = 0;
 	// Initialize
 	k = lvls - 1;
 	tmin = treeS[k][0];
@@ -23,20 +53,16 @@ int TagTreeDecoder::update(CodeBlock *cblk) {
 		if (ts < tmin) {
 			ts = tmin;
 		}
-		while (t > ts) {
-			if (tv >= ts) { // We are not done yet
-				if (in->readBit() == 0) { // '0' bit
-											// We know that 'value' > treeS[k][idx]
+		while (true) {
+			if (tv > ts) { // We are not done yet
+				if (in->readBit() == 0) { // '0' bit => We know that 'value' > treeS[k][idx]
 					ts++;
 				}
-				else { // '1' bit
-						// We know that 'value' = treeS[k][idx]
-					tv = ts++;
+				else { // '1' bit => We know that 'value' = treeS[k][idx]
+					tv = ts;
 				}
-				// Increment of treeS[k][idx] done above
 			}
 			else { // We are done, we can set ts and get out
-				ts = t;
 				break; // get out of this while
 			}
 		}

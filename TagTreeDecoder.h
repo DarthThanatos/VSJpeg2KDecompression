@@ -3,10 +3,10 @@
 
 class TagTreeDecoder {
 public:
-	TagTreeDecoder(StreamReader *);
-	int update(CodeBlock *);
+	TagTreeDecoder(PacketHeaderReader *, int, int);
+	int update();
 private:
-	StreamReader *in;
+	PacketHeaderReader *in;
 	int lvls, w,h;
 	int ts, tv;
 	int **treeS, **treeV;

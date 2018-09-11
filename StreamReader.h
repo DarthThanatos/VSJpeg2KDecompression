@@ -12,8 +12,8 @@ public:
 	unsigned char *readNBytes(unsigned char*, int);
 	int readBit();
 	int readBits(int n);
+	FILE * input;
 
 private:
-	FILE * input;
 	FILE * output;
 };

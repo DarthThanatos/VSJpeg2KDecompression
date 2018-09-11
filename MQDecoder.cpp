@@ -1,15 +1,16 @@
 #include "common.h"
 
-
-
-MQDecoder :: MQDecoder(StreamReader *iStream, int nrOfContexts,	int initStates[]) {
-	in = iStream;
+MQDecoder :: MQDecoder(unsigned char *data, int nrOfContexts, int initStates[]) {
+	this->data = data;
+	this->dataPos = 0;
 	I = new int[nrOfContexts];
 	mPS = new int[nrOfContexts];
-	// Save the initial states
+	for (int i = 0; i < nrOfContexts; i++) {
+		I[i] = 0; mPS[i] = 0;
+	}
 	this->initStates = initStates;
-	init();
 	this->nrOfCtxts = nrOfContexts;
+	init();
 	resetCtxts();
 }
 
@@ -69,8 +70,9 @@ int MQDecoder::decodeSymbol(int context) {
 	index = I[context];
 	q = qe[index];
 
-	a -= qe[I[context]];
-	if ((c >>  16) < a) {
+	a -= q;
+	unsigned int c_s = c;
+	if ((c_s >>  16) < a) {
 
 		if ((a & 0x8000) == 0) {
 			decision = mps_exchange(context);
@@ -91,29 +93,34 @@ int MQDecoder::decodeSymbol(int context) {
 
 
 void MQDecoder::byteIn() {
-	if (b == 0xFF) {
-		b = in->readByte() & 0xFF; // Convert EOFs (-1) to 0xFF
+	if (!markerFound) {
+		if (b == 0xFF) {
+			b = data[dataPos++] & 0xFF; // Convert EOFs (-1) to 0xFF
 
-		if (b>0x8F) {
-			markerFound = true;
-			// software-convention decoder: c unchanged
-			cT = 8;
+			if (b > 0x8F) {
+				markerFound = true;
+				// software-convention decoder: c unchanged
+				cT = 8;
+			}
+			else {
+				c += 0xFE00 - (b << 9);
+				cT = 7;
+			}
 		}
 		else {
-			c += 0xFE00 - (b << 9);
-			cT = 7;
+			b = data[dataPos++] & 0xFF; // Convert EOFs (-1) to 0xFF
+			c += 0xFF00 - (b << 8);
+			cT = 8;
 		}
 	}
 	else {
-		b = in->readByte() & 0xFF; // Convert EOFs (-1) to 0xFF
-		c += 0xFF00 - (b << 8);
 		cT = 8;
 	}
 }
 
 void MQDecoder::resetCtxts() {
 	for (int i = 0; i < nrOfCtxts; i++) {
-		initStates[i] = 0;
+		I[i] = initStates[i];
 		mPS[i] = 0;
 	}
 }
@@ -122,16 +129,12 @@ void MQDecoder::nextSegment() {
 	init();
 }
 
-
-
-
 void MQDecoder::init() {
 	// --- INITDEC
 	markerFound = false;
 
 	// Read first byte
-	b = in->readByte() & 0xFF;
-
+	b = data[dataPos++] & 0xFF;
 	// Software conventions decoder
 	c = (b ^ 0xFF);
 	c <<= 16;

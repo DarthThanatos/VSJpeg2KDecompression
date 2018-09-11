@@ -12,6 +12,7 @@ public:
 	void handleSOT();
 	void handleQCC();
 	void readCompressedImage();
+	void initSubbands();
 
 	/*public fields*/
 
@@ -25,10 +26,15 @@ public:
 	char transformation;
 	unsigned short number_of_layers;
 	int bit_stream_length;
-	int number_of_decomposition_lvls;
-
+	int number_of_decomposition_lvls, number_of_components;
 
 	char sqcd_byte, guard_bits, quantization_type;
+
+	unsigned int Xsiz, Ysiz;
+	unsigned char *sod;
+	Subband ** componentsSubbandRoots;
+	int codeblock_height;
+	int codeblock_width;
 
 private:
 	StreamReader *streamReader;
