@@ -1,5 +1,0 @@
-﻿  EntropyDecoder.cpp
-c:\users\admin\desktop\robert\agh\cyfra\decompress\vsjpeg2kdecompression\entropydecoder.cpp(5): warning C4101: "val": lokalna zmienna, do której nie istnieje odwołanie
-c:\users\admin\desktop\robert\agh\cyfra\decompress\vsjpeg2kdecompression\entropydecoder.cpp(5): warning C4101: "deltaMSE": lokalna zmienna, do której nie istnieje odwołanie
-c:\users\admin\desktop\robert\agh\cyfra\decompress\vsjpeg2kdecompression\entropydecoder.cpp(404): warning C4102: "top_half": etykieta, do której nie istnieje odwołanie
-  J2KDecompress.vcxproj -> C:\Users\Admin\Desktop\Robert\agh\cyfra\decompress\VSJpeg2KDecompression\Debug\J2KDecompress.exe
