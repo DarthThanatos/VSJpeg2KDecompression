@@ -35,6 +35,7 @@ public:
 	Subband ** componentsSubbandRoots;
 	int codeblock_height;
 	int codeblock_width;
+	int *eps;
 
 private:
 	StreamReader *streamReader;

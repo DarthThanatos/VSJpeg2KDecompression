@@ -65,6 +65,13 @@ void MetadataReader::handleQCD() {
 	guard_bits = sqcd_byte >> 5;
 	quantization_type = sqcd_byte & 0x5;
 	int size = quantization_type == 0 ? 8 : 16;
+	cout << "quantization type: " << (int)quantization_type << " guard bits: " << (int) guard_bits << endl;
+	eps = new int[length - 3];
+	for (int i = 0; i < length - 3; i++) {
+		unsigned char spgcd_i = streamReader->readByte();
+		cout << "subband: " << i << " exponent: " << ((spgcd_i & 0xF8) >> 3) << endl;
+		eps[i] = ((spgcd_i & 0xF8) >> 3);
+	}
 
 }
 

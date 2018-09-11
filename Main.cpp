@@ -20,6 +20,27 @@ void print_bin_padded(int number, char *end_str) {
 	printf("%s", end_str);
 }
 
+void dequantize(MetadataReader *mr, CodeBlock**** cblks) {
+	for (int c = 0; c < ALL_C; c++) {
+		int i = 0;
+		for (int r = 0; r < ALL_R; r++) {
+			int mins = (r == 0) ? 0 : 1;
+			int maxs = (r == 0) ? 1 : 4;
+			for (int s = mins; s < maxs; s++) {
+				CodeBlock *cblk = cblks[c][r][s];
+				int mb = mr->guard_bits + mr->eps[i] - 1;
+				int shiftBits = 31 - mb;
+				for (int j = 0; j < cblk->w * cblk->h; j++) {
+					int coeff = cblk->coefficients[j]; 
+					cblk->coefficients[j] = (coeff >= 0) ? (coeff >> shiftBits) : -((coeff & 0x7FFFFFFF) >> shiftBits);
+				}
+				cblk->printCoefficients();
+				i++;
+			}
+		}
+	}
+}
+
 void decode(int argc, char*argv[]) {
 	StreamReader *streamReader = new StreamReader(argv[1], argv[2]);
 	MetadataReader *metadataReader = new MetadataReader(streamReader);
@@ -29,6 +50,7 @@ void decode(int argc, char*argv[]) {
 	CodeBlock**** cblks = packetDecoder->readData(metadataReader);
 	EntropyDecoder *ed = new EntropyDecoder(metadataReader);
 	ed->decode(cblks);
+	dequantize(metadataReader, cblks);
 
 	Subband *s = metadataReader->componentsSubbandRoots[0]->getSubbandAt(5, 0);
 	cout << (s != NULL ? s->toString() : "NULL") << endl;
