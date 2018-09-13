@@ -20,6 +20,8 @@ def display(jpg,width,height):
 
 def main():
 	filename = "result.txt"
+	if sys.argv.__len__() > 1 :
+		filename = sys.argv[1]
 	with open(filename, "rb") as f:
 		jpg_desc = f.read().split()
 		width,height = int(jpg_desc[0]), int(jpg_desc[1])
