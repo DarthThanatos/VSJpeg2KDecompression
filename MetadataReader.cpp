@@ -18,7 +18,6 @@ void MetadataReader::handleSIZ() {
 	unsigned int YTOsiz = streamReader->readFourBytes(); 
 	unsigned short componentsAmount = streamReader->readTwoBytes();
 	SXY *sxy = new SXY[componentsAmount];
-	;
 	for (unsigned short i = 0; i < componentsAmount; i++) {
 		char get_byte = streamReader->readByte();
 		sxy[i].XRsiz = sxy[i].YRsiz = 0;

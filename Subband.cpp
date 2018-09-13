@@ -12,11 +12,11 @@ Subband::Subband(int lvl, int totalDecompLvls, int type, int w, int h, int oX, i
 		childrenCount = 4;
 		allChildren = new Subband*[childrenCount];
 		LL = allChildren[0] = new Subband(lvl - 1, totalDecompLvls, WT_ORIENT_LL, w >> 1, h >> 1, 0, 0);
-			HL = allChildren[1] = new Subband(lvl, totalDecompLvls, WT_ORIENT_HL, w >> 1, h >> 1, w >> 1, 0);
-			LH = allChildren[2] = new Subband(lvl, totalDecompLvls, WT_ORIENT_LH, w >> 1, h >> 1, 0, h >> 1);
-			HH = allChildren[3] = new Subband(lvl, totalDecompLvls, WT_ORIENT_HH, w >> 1, h >> 1, w >> 1, h >> 1);
-		
+		HL = allChildren[1] = new Subband(lvl, totalDecompLvls, WT_ORIENT_HL, w >> 1, h >> 1, w >> 1, 0);
+		LH = allChildren[2] = new Subband(lvl, totalDecompLvls, WT_ORIENT_LH, w >> 1, h >> 1, 0, h >> 1);
+		HH = allChildren[3] = new Subband(lvl, totalDecompLvls, WT_ORIENT_HH, w >> 1, h >> 1, w >> 1, h >> 1);
 	}
+	this->isNode = childrenCount != 0;
 }
 
 Subband* Subband::getSubbandAt(int r, int s) {
@@ -54,4 +54,14 @@ string Subband::toString() {
 		
 	}
 	return str;
+}
+
+void Subband::printCoefficients(int *coefficients) {
+	cout << "(ulx,uly,w,h)= (" << oX << "," << oY << "," << w << "," << h << ")" << endl;
+	for (int i = 0; i < h; i++) {
+		for (int j = 0; j < w; j++) {
+			cout << coefficients[i * w + j] << (j != w - 1 ? " " : "");
+		}
+		cout <<"\n";
+	}
 }

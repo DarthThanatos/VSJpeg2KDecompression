@@ -22,6 +22,7 @@ using namespace std;
 #include "TagTreeDecoder.h"
 #include "PacketDecoder.h"
 #include "EntropyDecoder.h"
+#include "InverseWaveletTransform.h"
 
 const int ALL_C = 3, ALL_R = 6, ALL_S = 4;
 enum FILTERS { F5x3, F9x3 };

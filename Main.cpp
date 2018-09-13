@@ -34,11 +34,84 @@ void dequantize(MetadataReader *mr, CodeBlock**** cblks) {
 					int coeff = cblk->coefficients[j]; 
 					cblk->coefficients[j] = (coeff >= 0) ? (coeff >> shiftBits) : -((coeff & 0x7FFFFFFF) >> shiftBits);
 				}
-				cblk->printCoefficients();
+				//cblk->printCoefficients();
 				i++;
 			}
 		}
 	}
+}
+
+int*** icdt(MetadataReader *mr, int **YCbCr) {
+	//Red = Y + 1.402 * Cr + 128
+	//Green = Y - 0.3437 * Cb - 0.7143 * Cr + 128
+	//Blue = Y + 1.772 * Cb + 128
+	int ***RGB = new int**[ALL_C];
+	
+	for (int c = 0; c < ALL_C; c++) {
+		RGB[c] = new int*[mr->Ysiz];
+		for (int i = 0; i < mr->Ysiz; i++) {
+			RGB[c][i] = new int[mr->Xsiz];
+			for (int j = 0; j < mr->Xsiz; j++) {
+				RGB[c][i][j] = 0;
+			}
+		}
+	}
+
+	for (int i = 0; i < mr->Ysiz; i++) {
+		for (int j = 0; j < mr->Xsiz; j++) {
+			RGB[0][i][j] = min(ceil(YCbCr[0][i * mr->Xsiz + j] + YCbCr[2][i * mr->Xsiz + j] * 1.402 + 128*2), 255);
+			RGB[1][i][j] = min(ceil(YCbCr[0][i * mr->Xsiz + j] - 0.3437 * YCbCr[1][i * mr->Xsiz + j] - 0.7143*YCbCr[2][i * mr->Xsiz + j] + 128*2), 255);
+			RGB[2][i][j] = min(ceil(YCbCr[0][i * mr->Xsiz + j] + 1.772 * YCbCr[1][i * mr->Xsiz + j] + 128*2), 255);
+			for (int k = 0; k < 3; k++) {
+				RGB[k][i][j] = max(RGB[k][i][j], 0);
+			}
+		}
+	}
+	return RGB;
+}
+
+int*** irct(MetadataReader *mr, int **I) {
+	int ***RGB = new int**[ALL_C];
+
+	for (int c = 0; c < ALL_C; c++) {
+		RGB[c] = new int*[mr->Ysiz];
+		for (int i = 0; i < mr->Ysiz; i++) {
+			RGB[c][i] = new int[mr->Xsiz];
+			for (int j = 0; j < mr->Xsiz; j++) {
+				RGB[c][i][j] = 0;
+			}
+		}
+	}
+
+	for (int i = 0; i < mr->Ysiz; i++) {
+		for (int j = 0; j < mr->Xsiz; j++) {
+			RGB[1][i][j] = min(I[0][i * mr->Xsiz + j] - floor((I[2][i * mr->Xsiz + j] + I[1][i * mr->Xsiz + j])/4.0), 255);
+			RGB[0][i][j] = min(I[2][i * mr->Xsiz + j] + RGB[1][i][j], 255);
+			RGB[2][i][j] = min(I[1][i * mr->Xsiz + j] + RGB[1][i][j], 255);
+			for (int k = 0; k < 3; k++) {
+				RGB[k][i][j] = max(RGB[k][i][j] + 128, 0);
+			}
+		}
+	}
+
+	return RGB;
+
+}
+
+void writeToFile(MetadataReader *mr, int ***RGB) {
+	FILE* res_file = fopen("result.txt", "wb");
+	fprintf(res_file, "%d %d\n", mr->Xsiz, mr->Ysiz);
+	for (int k = 0; k < 3; k++) {
+		for (int i = 0; i < mr->Ysiz; i++) {
+			for (int j = 0; j < mr->Xsiz; j++) {
+				fprintf(res_file, "%d ", (int)RGB[k][i][j]);
+			}
+			fprintf(res_file, "\n");
+		}
+		fprintf(res_file, "\n");
+	}
+	fclose(res_file);
+	cout << "done" << endl;
 }
 
 void decode(int argc, char*argv[]) {
@@ -51,6 +124,10 @@ void decode(int argc, char*argv[]) {
 	EntropyDecoder *ed = new EntropyDecoder(metadataReader);
 	ed->decode(cblks);
 	dequantize(metadataReader, cblks);
+	InverseWaveletTransform *iwt = new InverseWaveletTransform(cblks, metadataReader);
+	int **imgComponents = iwt->inverseSubbandCodeblocks();
+	int ***rgb = irct(metadataReader, imgComponents);
+	writeToFile(metadataReader, rgb);
 
 	Subband *s = metadataReader->componentsSubbandRoots[0]->getSubbandAt(5, 0);
 	cout << (s != NULL ? s->toString() : "NULL") << endl;
@@ -60,6 +137,8 @@ void decode(int argc, char*argv[]) {
 	unsigned int c_s = c;
 	bitset<32> x(c), x_s(c_s>>16);
 	cout << x << " " << x_s << endl;
+
+
 }
 
 
@@ -75,7 +154,7 @@ void init(int argc, char*argv[]) {
 int main(int argc, char*argv[]) {
 	init(argc, argv);
 	decode(argc, argv);
-	printf("Press any key to continue\n");
-	getchar();
+	//printf("Press any key to continue\n");
+	//getchar();
 	return 0;
 }

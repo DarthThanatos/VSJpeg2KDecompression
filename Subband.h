@@ -18,6 +18,7 @@ class Subband {
 	public:
 		Subband(int, int, int, int, int, int, int);
 		Subband *getSubbandAt(int, int);
+		void printCoefficients(int* coeffs);
 
 		int w, h, oX, oY, totalDecompLvls, rLvl, type;
 		Subband *LL, *HL, *LH, *HH;
@@ -25,4 +26,5 @@ class Subband {
 		int childrenCount = 0;
 
 		string toString();
+		boolean isNode;
 };
