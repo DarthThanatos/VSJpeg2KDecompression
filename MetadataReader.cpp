@@ -22,7 +22,7 @@ void MetadataReader::handleSIZ() {
 		char get_byte = streamReader->readByte();
 		sxy[i].XRsiz = sxy[i].YRsiz = 0;
 		sxy[i].sign = get_byte >> 7;
-		sxy[i].precision = (get_byte & 0x7) + 1;
+		sxy[i].precision = (get_byte & 0x7);
 		sxy[i].XRsiz = streamReader->readByte();
 		sxy[i].YRsiz = streamReader->readByte();
 		printf("sign = %d, precision = %d, xrsiz = %d, yrsiz = %d\n", sxy[i].sign, sxy[i].precision, sxy[i].XRsiz, sxy[i].YRsiz);

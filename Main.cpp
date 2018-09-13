@@ -119,7 +119,7 @@ void init(int argc, char*argv[]) {
 int main(int argc, char*argv[]) {
 	init(argc, argv);
 	decode(argc, argv);
-	//printf("Press any key to continue\n");
-	//getchar();
+	printf("Press any key to continue\n");
+	getchar();
 	return 0;
 }
