@@ -279,7 +279,6 @@ int EntropyDecoder::getSym(int data[], int k, int csj, int setmask, int sc_shift
 	unsigned int ctxt = SC_LUT[(csj >> sc_shift)&SC_MASK];
 	unsigned int xorBit = ctxt >> SC_SPRED_SHIFT;
 	int sym = mq->decodeSymbol(ctxt & SC_LUT_MASK) ^ (xorBit);
-	// Update the data
 	data[k] = (sym << 31) | setmask;
 	return sym;
 }
@@ -660,7 +659,6 @@ void EntropyDecoder::magRefPass(CodeBlock *cblk, int bp, int* state, int *zc_lut
 				}
 				state[j] = csj;
 			}
-			
 			// Do half bottom of column
 			if (sheight < 3) continue;
 			j += sscanw;

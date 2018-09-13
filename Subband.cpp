@@ -1,5 +1,6 @@
 #include "common.h"
 
+
 Subband::Subband(int lvl, int totalDecompLvls, int type, int w, int h, int oX, int oY) {
 	this->totalDecompLvls = totalDecompLvls;
 	this->type = type;
@@ -35,6 +36,7 @@ string typeToString(int type) {
 		case WT_ORIENT_HH: return "hh";
 	}
 }
+
 
 string Subband::toString() {
 	string str = "";

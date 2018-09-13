@@ -66,14 +66,11 @@ int MQDecoder::decodeSymbol(int context) {
 	int la;
 	int index;
 	int decision;
-
 	index = I[context];
 	q = qe[index];
-
 	a -= q;
 	unsigned int c_s = c;
 	if ((c_s >>  16) < a) {
-
 		if ((a & 0x8000) == 0) {
 			decision = mps_exchange(context);
 			renormd();
@@ -130,9 +127,7 @@ void MQDecoder::nextSegment() {
 }
 
 void MQDecoder::init() {
-	// --- INITDEC
 	markerFound = false;
-
 	// Read first byte
 	b = data[dataPos++] & 0xFF;
 	// Software conventions decoder

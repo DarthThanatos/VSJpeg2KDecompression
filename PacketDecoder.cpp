@@ -81,10 +81,8 @@ CodeBlock**** PacketDecoder::readData(MetadataReader *mr) {
 						// if next bit is 0 do nothing
 						if (phr->readBit() == 1) {//if is 1
 							npasses++;
-
 							int tmp = phr->readBits(2);
 							npasses += tmp;
-
 							// If next 2 bits are not 11 do nothing
 							if (tmp == 0x3) { //if 11
 								tmp = phr->readBits(5);
@@ -112,6 +110,5 @@ CodeBlock**** PacketDecoder::readData(MetadataReader *mr) {
 			}
 		}
 	}
-	//printCBI(dts);
 	return dts->cblkI;
 }

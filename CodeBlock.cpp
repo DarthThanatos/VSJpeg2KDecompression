@@ -1,5 +1,6 @@
 #include "common.h"
 
+
 string CodeBlock::toString() {
 	string str = "(ulx,uly,w,h)= (" + to_string(oX) + "," + to_string(oY) + "," + to_string(w) + "," + to_string(h);
 	str += ") " + to_string(msbSkipped) + " MSB bit(s) skipped\n";

@@ -45,7 +45,6 @@ unsigned int StreamReader::readFourBytes() {
 int StreamReader::readBit() {
 	return 0; //to-do
 }
-
 int StreamReader::readBits(int n) {
 	return 0; //to-do
 }

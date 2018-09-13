@@ -29,11 +29,9 @@ int PacketHeaderReader::readBit() {
 		}
 	}
 	return (bbuf >> --bpos) & 0x01;
-
 }
 
 int PacketHeaderReader::readBits(int n) {
-
 	int bits; 
 	if (n <= bpos) {
 		return (bbuf >> (bpos -= n)) & ((1 << n) - 1);

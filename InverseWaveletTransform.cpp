@@ -10,10 +10,10 @@ InverseWaveletTransform::InverseWaveletTransform(CodeBlock ****cblks, MetadataRe
 int **InverseWaveletTransform::inverseSubbandCodeblocks() {
 	int **reconstructedComponents = new int*[ALL_C];
 	for (int c = 0; c < ALL_C; c++) {
-		reconstructedComponents[c] = new int[mr->Xsiz * mr->Ysiz];
 		//reconstructedComponents[c] = reconstructLvlRecursive(componentRoots[c], cblks[c]);
+
+		reconstructedComponents[c] = new int[mr->Xsiz * mr->Ysiz];
 		waveletTreeReconstruction(reconstructedComponents[c], componentRoots[c], cblks[c]);
-		//componentRoots[c]->printCoefficients(reconstructedComponents[c]);
 	}
 	return reconstructedComponents;
 }
@@ -127,9 +127,9 @@ void synthetize_lpf(int *lowSig, int lowOff, int lowLen, int lowStep,
 	int lk; //Indexing lowSig
 	int hk; //Indexing highSig  
 
-			/* Generate even samples (inverse low-pass filter) */
+	/* Generate even samples (inverse low-pass filter) */
 
-			//Initialize counters
+	//Initialize counters
 	lk = lowOff;
 	hk = highOff;
 	ik = outOff;

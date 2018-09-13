@@ -71,7 +71,6 @@ void MetadataReader::handleQCD() {
 		cout << "subband: " << i << " exponent: " << ((spgcd_i & 0xF8) >> 3) << endl;
 		eps[i] = ((spgcd_i & 0xF8) >> 3);
 	}
-
 }
 
 void MetadataReader::handleComment() {
@@ -82,7 +81,6 @@ void MetadataReader::handleComment() {
 	characters = streamReader->readNBytes(characters, length - 4);
 	characters[length - 4] = '\0';
 	printf("%s\n", characters);
-
 }
 
 void MetadataReader::handleSOT() {
