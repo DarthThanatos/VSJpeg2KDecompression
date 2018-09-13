@@ -40,6 +40,10 @@ void dequantize(MetadataReader *mr, CodeBlock**** cblks) {
 	}
 }
 
+float min_(float first, float second) {
+	return first < second ? first : second;
+}
+
 int*** irct(MetadataReader *mr, int **I) {
 	int ***RGB = new int**[ALL_C];
 
@@ -55,9 +59,9 @@ int*** irct(MetadataReader *mr, int **I) {
 
 	for (int i = 0; i < mr->Ysiz; i++) {
 		for (int j = 0; j < mr->Xsiz; j++) {
-			RGB[1][i][j] = min(I[0][i * mr->Xsiz + j] - floor((I[2][i * mr->Xsiz + j] + I[1][i * mr->Xsiz + j])/4.0), 255);
-			RGB[0][i][j] = min(I[2][i * mr->Xsiz + j] + RGB[1][i][j], 255);
-			RGB[2][i][j] = min(I[1][i * mr->Xsiz + j] + RGB[1][i][j], 255);
+			RGB[1][i][j] = min_(I[0][i * mr->Xsiz + j] - floor((I[2][i * mr->Xsiz + j] + I[1][i * mr->Xsiz + j])/4.0), 255);
+			RGB[0][i][j] = min_(I[2][i * mr->Xsiz + j] + RGB[1][i][j], 255);
+			RGB[2][i][j] = min_(I[1][i * mr->Xsiz + j] + RGB[1][i][j], 255);
 			for (int k = 0; k < 3; k++) {
 				RGB[k][i][j] = max(RGB[k][i][j] + 128, 0);
 			}
@@ -119,7 +123,7 @@ void init(int argc, char*argv[]) {
 int main(int argc, char*argv[]) {
 	init(argc, argv);
 	decode(argc, argv);
-	printf("Press any key to continue\n");
-	getchar();
+	//printf("Press any key to continue\n");
+	//getchar();
 	return 0;
 }
