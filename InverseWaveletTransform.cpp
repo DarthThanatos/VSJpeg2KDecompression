@@ -56,14 +56,27 @@ void interleave(Subband *subband, int **childrenParts, int *subbandImg) {
 
 int *oneD_SR(int *y, int len) {
 	int *x = new int[len];
-	x[0] = y[0] - ((y[1] + 1) >> 1); //symmetric extention to the left of the signal without the y_ext lookup specified in itut
+
+	// First we take care of the symmetric extention to the left of the signal without the y_ext lookup table specified in itut. 
+	// As there is no coefficient to the left of y[0], we mirror y[1] and treat it as y[-1] (i.e. y[-1] = y[1]). So the pattern becomes:
+	// x[0] = y[0] - ((y[-1] + y[1] + 2) >> 2) = y[0] - ((y[1] + y[1] + 2) >> 2) = y[0] - ((2y[1] + 2) >> 2)
+	// We can simplify the nominator and the denominator of the expression in parenthesis by the common factor of 2 
+	// (shifting a number two bit positions to the right is like dividing it by 4, shifting is just MUCH quicker), 
+	// and thus the pattern becomes x[0] = y[0] - ((y[1] + 1) >> 1) 
+
+	x[0] = y[0] - ((y[1] + 1) >> 1); 
 	for (int i = 2; i < len - 1; i += 2) {
-		x[i] = y[i] - ((y[i-1] + y[i+1] + 2) >> 2); //even samples calculation
+		x[i] = y[i] - ((y[i-1] + y[i+1] + 2) >> 2); //even samples calculation (1)
 	}
 	for(int i = 1; i < len - 1; i+=2){
-		x[i] = y[i] + ((x[i-1] + x[i+1]) >> 1); //odd samples calculation
+		x[i] = y[i] + ((x[i-1] + x[i+1]) >> 1); //odd samples calculation (2)
 	}
-	x[len-1] = y[len-1] + x[len-2]; //symmetric extention to the right of the signal without the y_ext lookup specified in itut
+
+	// Symmetric extention to the right of the x. The discussion above also applies here.Only this time we consider the last coefficient of x signal 
+	// (i.e. x[len-1]), and as there is no x[len] coeffieient, we mirror x[len-2] to act like it.
+	// So we have x[len] = x[len-2]. Just apply this extention to the pattern (2) and you get the formula for calculating x[len-1].
+
+	x[len-1] = y[len-1] + x[len-2]; 
 	return x;
 }
 
@@ -100,12 +113,14 @@ void InverseWaveletTransform::wavelet2DReconstruction_(Subband *subband, int **c
 	verSR(subband, subbandImg);
 }
 
+
 //============================================================================================================================
 
 //if the experimental approach below is to be used, please add these two lines to the for loop in the inverseSubbandCodeblocks
 //function (i.e. instead the line: reconstructedComponents[c] = reconstructLvlRecursive(componentRoots[c], cblks[c]); )
 //reconstructedComponents[c] = new int[mr->Xsiz * mr->Ysiz];
 //waveletTreeReconstruction(reconstructedComponents[c], componentRoots[c], cblks[c]);
+
 
 void synthetize_lpf(int *lowSig, int lowOff, int lowLen, int lowStep,
 	int* highSig, int highOff, int highLen, int highStep,

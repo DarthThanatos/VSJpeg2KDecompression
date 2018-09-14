@@ -1,5 +1,5 @@
 echo off 
-g++ -std=c++11 Main.cpp StreamReader.cpp CodeBlock.cpp EntropyDecoder.cpp InverseWaveletTransform.cpp MetadataReader.cpp MQDecoder.cpp PacketDecoder.cpp PacketHeaderReader.cpp Subband.cpp TagTreeDecoder.cpp -o decompress
+rem g++ -std=c++11 Main.cpp StreamReader.cpp CodeBlock.cpp EntropyDecoder.cpp InverseWaveletTransform.cpp MetadataReader.cpp MQDecoder.cpp PacketDecoder.cpp PacketHeaderReader.cpp Subband.cpp TagTreeDecoder.cpp -o decompress
 
 decompress %1 out1.txt
 rem J2KDecompress %1 out1.txt
