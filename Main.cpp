@@ -30,6 +30,11 @@ void dequantize(MetadataReader *mr, CodeBlock**** cblks) {
 				CodeBlock *cblk = cblks[c][r][s];
 				int mb = mr->guard_bits + mr->eps[i] - 1;
 				int shiftBits = 31 - mb;
+				// We decoded all bits => Nb(u,v) == mb and coefficients are already reconstructed (no quantization in the reversible transform is performed).
+				// However, for the convinience (and speed) in the entropy decoding phase, consecutive bitplanes are appended in a specific way:
+				// e.g. if a coefficient decompressed so far during past passes is now xxxx00000...0 (four bits decoded), 5th bit y was going to be 
+				// appended after fourth bit to the left: xxxxy00..0. The sequence of zeros following decompressed bits has the length exactly 31 - mb,
+				// thus the shift to the right by 31 - mb positions (as xxx...x has the mb length and the number can have max 32 bits of precision).   
 				for (int j = 0; j < cblk->w * cblk->h; j++) {
 					int coeff = cblk->coefficients[j]; 
 					cblk->coefficients[j] = (coeff >= 0) ? (coeff >> shiftBits) : -((coeff & 0x7FFFFFFF) >> shiftBits);
